@@ -137,3 +137,13 @@ test('limpa o arquivo e preserva o erro quando a persistência rejeita', async (
     documentsRepository.removeStoredFile = originalRemoveStoredFile;
   }
 });
+
+test('listagem e download exigem identificação do usuário', async () => {
+  const listResponse = await fetch(`${baseUrl}/documents`);
+  assert.equal(listResponse.status, 400);
+  assert.equal((await listResponse.json()).error.code, 'INVALID_USER');
+
+  const downloadResponse = await fetch(`${baseUrl}/documents/document-id/download`);
+  assert.equal(downloadResponse.status, 400);
+  assert.equal((await downloadResponse.json()).error.code, 'INVALID_USER');
+});
