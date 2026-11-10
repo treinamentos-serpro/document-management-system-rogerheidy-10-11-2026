@@ -11,6 +11,8 @@ process.env.UPLOAD_DIR = storageDirectory;
 process.env.MAX_FILE_SIZE_BYTES = '8';
 
 const app = require('../src/app');
+const documentsRepository = require('../src/repositories/documents.repository');
+const documentsService = require('../src/services/documents.service');
 let server;
 let baseUrl;
 
@@ -109,4 +111,29 @@ test('upload valida usuário, arquivo e limite de tamanho', async () => {
   });
   assert.equal(oversizedResponse.status, 413);
   assert.equal((await oversizedResponse.json()).error.code, 'FILE_TOO_LARGE');
+});
+
+test('limpa o arquivo e preserva o erro quando a persistência rejeita', async () => {
+  const originalCreate = documentsRepository.create;
+  const originalRemoveStoredFile = documentsRepository.removeStoredFile;
+  const persistenceError = new Error('Falha ao persistir metadados.');
+  const removedFiles = [];
+
+  documentsRepository.create = async () => {
+    throw persistenceError;
+  };
+  documentsRepository.removeStoredFile = async (fileName) => {
+    removedFiles.push(fileName);
+  };
+
+  try {
+    await assert.rejects(
+      documentsService.upload({ filename: 'incomplete-upload' }, 'user-a'),
+      (error) => error === persistenceError
+    );
+    assert.deepEqual(removedFiles, ['incomplete-upload']);
+  } finally {
+    documentsRepository.create = originalCreate;
+    documentsRepository.removeStoredFile = originalRemoveStoredFile;
+  }
 });

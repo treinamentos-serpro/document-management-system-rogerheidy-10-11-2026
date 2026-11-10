@@ -1,14 +1,18 @@
 const documentsRepository = require('../repositories/documents.repository');
 
+async function cleanupFailedUpload(fileName) {
+  try {
+    await documentsRepository.removeStoredFile(fileName);
+  } catch (cleanupError) {
+    console.error('Não foi possível remover um upload incompleto:', cleanupError);
+  }
+}
+
 async function upload(file, owner) {
   try {
-    return documentsRepository.create(file, owner);
+    return await documentsRepository.create(file, owner);
   } catch (error) {
-    try {
-      await documentsRepository.removeStoredFile(file.filename);
-    } catch (cleanupError) {
-      console.error('Não foi possível remover um upload incompleto:', cleanupError);
-    }
+    await cleanupFailedUpload(file.filename);
     throw error;
   }
 }
